@@ -1,0 +1,67 @@
+<div class="d-flex justify-content-center">
+  <div class="img-preview">
+    <img [src]="imgurl" />
+  </div>
+</div>
+<div class="d-flex gap-2">
+  <button (click)="randomizeImg()" type="button" class="btn btn-info">
+    Rdm ( or press 'r')
+  </button>
+  <button
+    type="button"
+    [ngClass]="{
+      btn: true,
+      'btn-success': imgurl == easterFound,
+      'btn-danger': imgurl != easterFound,
+    }"
+    [disabled]="imgurl == easterFound ? false : true"
+  >
+    Found it
+  </button>
+  <input [value]="imgurl" />
+  <!--<input (input)="onTextChanged($event)">-->
+  <!--manual 2-way binding directly-->
+</div>
+
+<div>
+  Quicksearch 1/ :
+  <input [(ngModel)]="text1" (ngModelChange)="filterList()" />
+  <!-- 2-way binding directly  -->
+</div>
+
+<!--<div>
+  Quicksearch 2/ :
+  <input #searchInput />
+  <!-- Using template reference -->
+<!--<button (click)="clickFilterList(searchInput)">Search</button>
+</div> -->
+<p></p>
+<div
+  *ngIf="text1 != ''"
+  [ngStyle]="{ color: filteredImgs.length > 0 ? 'green' : 'red' }"
+>
+  Text typed : {{ text1 }}
+</div>
+
+Possible outcome :
+
+<span class="card-container">
+  <cdk-virtual-scroll-viewport itemSize="300" class="viewport">
+    <!-- mutch be exact pixel height match-->
+    <div class="row" *cdkVirtualFor="let row of rows">
+      <span class="card-container">
+        <span *ngFor="let img of row"
+          ><app-product-card
+            [product]="images.get(img)!"
+            (onSelectedCard)="selectChange($event)"
+            #productCard
+          ></app-product-card
+        ></span>
+      </span>
+    </div>
+  </cdk-virtual-scroll-viewport>
+  >
+
+  <!-- Using cdkVirtualFor instead of ngFor for performance  -->
+  <!-- cdkVirtualFor is also 1D, so a manual chunking is necessary  -->
+</span>
