@@ -1,0 +1,54 @@
+:root {
+  --card-width: 200px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  word-wrap:normal; 
+  word-break: break-all;
+  overflow-y: auto;
+}
+
+.title-container {
+  width: 100%;
+  overflow: hidden;
+}
+
+.text h3{
+  animation: scroll-text 5s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite;
+  animation-direction: alternate;
+  
+}
+@keyframes scroll-text {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(var(--scroll-distance));
+  }
+}
+.card {
+  border: 1px solid gray;
+  border-radius: 10px;
+  padding: 10px;
+
+  width: 200px;
+  height: 300px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+}
+.card:hover {
+  transform: scale(1.1);
+  box-shadow: 2px 2px 2px rgb(0, 0, 0) ;
+  transition: all ease-out;
+  transition-duration: 0.25s;
+}
+
+img {
+  object-fit: cover;
+}
