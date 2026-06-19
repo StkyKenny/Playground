@@ -6,22 +6,33 @@ function getLastRowCol(sheet, column) {
   return lastRow;
 }
 
+function youtubeDurationToSeconds(duration) {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+
+  const hours = parseInt(match[1] || 0, 10);
+  const minutes = parseInt(match[2] || 0, 10);
+  const seconds = parseInt(match[3] || 0, 10);
+
+  console.log(hours * 3600 + minutes * 60 + seconds);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
 function myFunction() {
-  var spreadsheetID = "123123123123123123123123123";
-  var playlistID = "123123123123123123123123123";
+  var spreadsheetID = "123123123123123123123123123123";
+  var playlistID = "123123123123123123123123123123-123123123123123123123123123123";
 
   var maxVideosToCheck = 10;
 
-  var sheet =
-    SpreadsheetApp.openById(spreadsheetID).getSheetByName("Main Sheet");
+  var sheet = SpreadsheetApp.openById(spreadsheetID).getSheetByName("Main Sheet");
   var lr = sheet.getLastRow();
 
   for (var i = 3; i <= lr; i++) {
     var channelId = sheet.getRange(i, 3).getValue();
     var channelName = sheet.getRange(i, 2).getValue();
+    var rejectShorts = "no" == sheet.getRange(i, 5).getValue().toString().toLowerCase().trim();
+    var shortsThreshold = 3 * 60; // I consider shorts on this channel are videos not lasting longer than 3 mins.
 
     Logger.log(sheet.getRange(i, 2).getValue());
-
     /*
     // OLDER APPROACH : API IS BUGGED DOESNT WORK
     var results = YouTube.Search.list('id,snippet', {
@@ -33,13 +44,47 @@ function myFunction() {
     */
 
     var channelUploadPlaylist = channelId[0] + "U" + channelId.slice(2);
-    var results = YouTube.PlaylistItems.list("snippet", {
+    var results = YouTube.PlaylistItems.list("snippet,contentDetails", {
       maxResults: 10,
       playlistId: channelUploadPlaylist,
     });
+    var resultIds = results.items.map((item) => item.snippet.resourceId.videoId);
+    var videoDetails = YouTube.Videos.list("contentDetails", { id: resultIds }); // Can't fetch duration from the previous API, so I had to call this new endpoint
+    // Example output of this api endpoint
+    /*
+    	{ id: 'XXXXXX',
+        snippet: 
+        { description: '',
+        title: 'xxxxxxxxxxxxxxxxxxxxxxxx',
+        categoryId: '25',
+        publishedAt: '2026-01-31T14:53:57Z',
+        localized: 
+          { title: 'xxxxxxxxxxxxxxxxxxxxxxxx',
+            description: '' },
+        defaultLanguage: 'fr',
+        defaultAudioLanguage: 'fr',
+        channelTitle: 'XXXXXXXXXXX',
+        liveBroadcastContent: 'none',
+        thumbnails: 
+          { standard: [Object],
+            high: [Object],
+            default: [Object],
+            medium: [Object],
+            maxres: [Object] },
+        channelId: 'XXXXXXXXXXXX' },
+      contentDetails: 
+      { contentRating: {},
+        licensedContent: true,
+        dimension: '2d',
+        duration: 'PT57S',
+        projection: 'rectangular',
+        definition: 'hd',
+        caption: 'false' },
+      etag: 'XXXXXXXXXXXXXX',
+      kind: 'youtube#video' }
+    */
 
-    var watchedVideosSheet2 =
-      SpreadsheetApp.openById(spreadsheetID).getSheetByName("WatchedVid2.0");
+    var watchedVideosSheet2 = SpreadsheetApp.openById(spreadsheetID).getSheetByName("WatchedVid2.0");
 
     // Search for the column of watched videos related to correct channel id instead of watched ids of all
     var watchedVideosSheetLC = watchedVideosSheet2.getLastColumn();
@@ -54,29 +99,16 @@ function myFunction() {
       }
     }
     if (!foundColumn) {
-      watchedVideosSheet2
-        .getRange(1, watchedVideosSheetLC + 1)
-        .setValue(channelName);
-      watchedVideosSheet2
-        .getRange(2, watchedVideosSheetLC + 1)
-        .setValue(channelId);
+      watchedVideosSheet2.getRange(1, watchedVideosSheetLC + 1).setValue(channelName);
+      watchedVideosSheet2.getRange(2, watchedVideosSheetLC + 1).setValue(channelId);
       currentColumn = watchedVideosSheetLC + 1;
-      console.info(
-        "added new column for " + channelName + " of Id : " + channelId
-      );
+      console.info("added new column for " + channelName + " of Id : " + channelId);
     }
-    var watchedVideosSheet2LR = getLastRowCol(
-      watchedVideosSheet2,
-      currentColumn
-    );
+    var watchedVideosSheet2LR = getLastRowCol(watchedVideosSheet2, currentColumn);
 
     for (var j = 0; j < maxVideosToCheck; j++) {
       try {
-        Logger.log(
-          results.items[j].snippet.title +
-            " ---  " +
-            results.items[j].snippet.publishedAt
-        );
+        Logger.log(results.items[j].snippet.title + " ---  " + results.items[j].snippet.publishedAt);
         var alreadyAdded = false;
 
         for (var k = 1; k <= watchedVideosSheet2LR; k++) {
@@ -95,21 +127,35 @@ function myFunction() {
         if (!alreadyAdded) {
           //var details = {videoId: results.items[j].id.videoId,kind: 'youtube#video'}; // OLDER API
           var details = {
-            videoId: results.items[0].snippet.resourceId.videoId,
+            videoId: results.items[j].snippet.resourceId.videoId,
             kind: "youtube#video",
           };
+          if (rejectShorts) {
+            if (shortsThreshold < videoDetails.items[0].contentDetails.duration) {
+              // Considered Shorts
+              // Skip it
+              continue;
+            }
+          }
           var resource = {
             snippet: { playlistId: playlistID, resourceId: details },
           };
 
           try {
-            Logger.log("Adding this video : " + results.items[j].snippet.title);
+            Logger.log(
+              "Adding this video : " +
+                results.items[j].snippet.title +
+                " ---- " +
+                results.items[j].snippet.resourceId.videoId,
+            );
+            Logger.log(resource);
             YouTube.PlaylistItems.insert(resource, "snippet");
+            //Problem with video added duplicate, api problem ? seems like https://stackoverflow.com/questions/70759657/youtube-data-api-playlistitems-list-returns-duplicated-entries-and-hide-other
 
             /*Example ressource required to add to playlist
             { snippet:  
-            { playlistId: '123123123123123123123123123',
-            resourceId: { videoId: 'g5Uvq7OD6zk', kind: 'youtube#video' } } }
+            { playlistId: 'XXXXXXXXXXXXXXXX',
+            resourceId: { videoId: 'gxxxxD6zk', kind: 'youtube#video' } } }
               */
 
             //Adding to the sheet "Watched Videos" for checking if that video is added or not

@@ -41,11 +41,20 @@ Why not use YouTube.Search.list() ?
 Why have a WatchedVid2.0 sheet ?
 
 > To not re-add videos, (because the script check the newest videos of a channel)
-> Additionaly, I have splitted them by channel to reduce the execution time (Google Appscript time constraint)
+> Additionaly, I have splitted them by channel to reduce the execution time (Google Appscript execution time constraint)
 
 Will you publish the Excel linked to this script ?
 
 > No need to, it's a really simple Excel if you understand the script
+
+Why so many comments ?
+
+> A lot of information are clearly not indicated in the documentation, so I had to look into stackOverflow to learn that endpoint A doesn't provide this information anymore and other breaking changes
+
+About Youtube Shorts
+
+> Because one channel started to spam youtube shorts, I added a filter to skip all videos of a duration above x seconds. Yes Youtube API does not provide a proper way to identify shorts from videos
+> see : https://stackoverflow.com/questions/78597268/is-there-a-way-using-youtubes-v3-api-to-determine-if-a-video-by-id-is-a-shor 
 
 ## Batch scripts
 
