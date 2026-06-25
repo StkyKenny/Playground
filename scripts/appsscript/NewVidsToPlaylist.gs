@@ -1,6 +1,6 @@
 function getLastRowCol(sheet, column) {
   let lastRow = 1;
-  while (sheet.getRange(lastRow, column).getValue() != "") {
+  while (sheet.getRange(lastRow, column).getValue().trim().toLowerCase() != "") {
     lastRow += 1;
   }
   return lastRow;
@@ -28,6 +28,9 @@ function myFunction() {
 
   for (var i = 3; i <= lr; i++) {
     var channelId = sheet.getRange(i, 3).getValue();
+    if (channelId.trim().toLowerCase() == "") {
+      continue;
+    }
     var channelName = sheet.getRange(i, 2).getValue();
     var rejectShorts = "no" == sheet.getRange(i, 5).getValue().toString().toLowerCase().trim();
     var shortsThreshold = 3 * 60; // I consider shorts on this channel are videos not lasting longer than 3 mins.
@@ -48,6 +51,7 @@ function myFunction() {
       maxResults: 10,
       playlistId: channelUploadPlaylist,
     });
+
     var resultIds = results.items.map((item) => item.snippet.resourceId.videoId);
     var videoDetails = YouTube.Videos.list("contentDetails", { id: resultIds }); // Can't fetch duration from the previous API, so I had to call this new endpoint
     // Example output of this api endpoint
@@ -98,17 +102,37 @@ function myFunction() {
         break;
       }
     }
+
+    // Automatically create a column for each new channel
     if (!foundColumn) {
       watchedVideosSheet2.getRange(1, watchedVideosSheetLC + 1).setValue(channelName);
       watchedVideosSheet2.getRange(2, watchedVideosSheetLC + 1).setValue(channelId);
       currentColumn = watchedVideosSheetLC + 1;
       console.info("added new column for " + channelName + " of Id : " + channelId);
     }
+
     var watchedVideosSheet2LR = getLastRowCol(watchedVideosSheet2, currentColumn);
+
+    // Optimisation trim down the "watched list"
+    let count = 256;
+    let additionalBuffer = 64; // To not run this clear each time i add over the threshold
+    if (watchedVideosSheet2LR > count + additionalBuffer) {
+      const lastRows = watchedVideosSheet2.getRange(watchedVideosSheet2LR - count, currentColumn, count, 1).getValues();
+
+      watchedVideosSheet2.getRange(4, currentColumn, count, 1).setValues(lastRows);
+      console.info("Optimized watched vids");
+      // Empty from threshold to last
+      watchedVideosSheet2.getRange(count, currentColumn, watchedVideosSheet2LR, 1).clearContent();
+    }
+
+
+    // LOOP Each Video
 
     for (var j = 0; j < maxVideosToCheck; j++) {
       try {
         Logger.log(results.items[j].snippet.title + " ---  " + results.items[j].snippet.publishedAt);
+
+        // Don't add already added
         var alreadyAdded = false;
 
         for (var k = 1; k <= watchedVideosSheet2LR; k++) {
@@ -131,16 +155,17 @@ function myFunction() {
             kind: "youtube#video",
           };
           if (rejectShorts) {
-            if (shortsThreshold < videoDetails.items[0].contentDetails.duration) {
-              // Considered Shorts
-              // Skip it
+            let durationCheck =
+              shortsThreshold > youtubeDurationToSeconds(videoDetails.items[j].contentDetails.duration);
+            console.log(rejectShorts && durationCheck);
+            if (durationCheck) {
+              console.info("skipped duration SHORT-checked");
               continue;
             }
           }
           var resource = {
             snippet: { playlistId: playlistID, resourceId: details },
           };
-
           try {
             Logger.log(
               "Adding this video : " +
