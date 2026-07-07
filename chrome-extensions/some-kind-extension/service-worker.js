@@ -11,6 +11,27 @@ function setupContextMenu() {
     contexts: ["selection"],
   });
 }
+
+const defaultLang = "en-GB";
+const supportedLanguages2 = {
+  en: "en-GB",
+  fr: "fr-FR",
+};
+
+const supportedLanguages = {
+  en: "en-GB",
+  es: "es-ES",
+  fr: "fr-FR",
+  de: "de-DE",
+  it: "it-IT",
+  pt: "pt-PT",
+  ru: "ru-RU",
+  zh: "zh-CN",
+  ja: "ja-JP",
+  ko: "ko-KR",
+  und: defaultLang,
+};
+
 let detector;
 
 async function getDetector() {
@@ -59,7 +80,6 @@ chrome.contextMenus.onClicked.addListener(async (data, tab) => {
   console.log("---------NEW CLICK---------------");
 
   await chrome.sidePanel.open({ tabId: tab.id });
-  console.log("side openned");
   getDetector().then((detector) =>
     detector.detect(data.selectionText).then(async (detected) => {
       console.log(detected);
@@ -69,7 +89,18 @@ chrome.contextMenus.onClicked.addListener(async (data, tab) => {
 
       const langDetected = detected[0].detectedLanguage;
       console.log("Using this lang : " + langDetected); // "fr", "en", "es"
-      await chrome.storage.session.set({ lang: langDetected, lastWord: data.selectionText, selectFlag: Date.now() });
+      chrome.tts.getVoices().then((detected) => {
+        console.log(detected);
+      });
+
+      chrome.tts.stop();
+      chrome.tts.speak(data.selectionText, {
+        lang: supportedLanguages[langDetected] || defaultLang,
+        pitch: 2,
+        rate: 2,
+      }); // pitch 2 or rate 2 for korean and chinese is fcked
+
+      await chrome.storage.session.set({ lang: supportedLanguages[langDetected], lastWord: data.selectionText });
     }),
   );
 });
