@@ -1,12 +1,21 @@
-<html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>TTS Voices Test</title>
+  </head>
   <body>
     <h1>Hello Extensions</h1>
 
     <button id="ttsBtn">TTS</button>
 
-    <div id="log"></div>
-    <script src="popup.js"></script>
+    <h3>Select Text:</h3>
+    <input type="text" id="sampleText" value="Hello, this is a test voice." style="width: 250px" />
 
-    <div id="output">Loading...</div>
+    <br /><br />
+
+    <div id="voiceButtons"></div>
+
+    <script src="popup.js"></script>
   </body>
 </html>
