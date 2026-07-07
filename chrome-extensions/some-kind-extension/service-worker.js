@@ -55,25 +55,21 @@ chrome.runtime.onStartup.addListener(async () => {
     console.error(e);
   }
 });
-chrome.contextMenus.onClicked.addListener( (data, tab) => {
+chrome.contextMenus.onClicked.addListener(async (data, tab) => {
+  console.log("---------NEW CLICK---------------");
 
-
-
-  detector.detect(data.selectionText).then(async (detected) => {
-    console.log(detected);
-    detected.forEach((result) => {
+  await chrome.sidePanel.open({ tabId: tab.id });
+  console.log("side openned");
+  getDetector().then((detector) =>
+    detector.detect(data.selectionText).then(async (detected) => {
+      console.log(detected);
+      /*detected.forEach((result) => {
       console.log(`${result.detectedLanguage}: ${result.confidence}`);
-    });
+    });*/
 
-const langDetected = detected[0].detectedLanguage;
-   await chrome.storage.session.set({ lang: langDetected ,lastWord: data.selectionText});
-    console.log("setted lang"); // "fr", "en", "es"
-    console.log(langDetected); // "fr", "en", "es"
-      chrome.sidePanel.open({ tabId: tab.id });
-
-  });
-
-  // Make sure the side panel is open.
-  chrome.sidePanel.open({ tabId: tab.id });
-    console.log("side openned"); 
+      const langDetected = detected[0].detectedLanguage;
+      console.log("Using this lang : " + langDetected); // "fr", "en", "es"
+      await chrome.storage.session.set({ lang: langDetected, lastWord: data.selectionText, selectFlag: Date.now() });
+    }),
+  );
 });
