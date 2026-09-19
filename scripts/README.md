@@ -60,6 +60,8 @@ Timed-out ?
 
 > Google appscript personnal use has a time limit per script of 6 min
 > To solve this problem I have updated the script to save pointer in its progress so that the next execution knows where to resume
+> ![Example of the script having unreliable executions times](unreliable_execution_time_example.png "Example executions times")
+> Here you can see how the scripts has a variable running time (without changing the logic), checking inside the logs, we can see a difference in execution time when the youtube APi is called. I guess it depends on their server loads
 
 But how many executions is required ?
 
