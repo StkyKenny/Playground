@@ -14,7 +14,7 @@ The script needs to be updated / is currently bugged ?
 
 _Resize and crop to target dimension then convert all imgs to .dds_
 
-~~  Why using the Wand library (why not the usual one) ?.dds image file extension  ~~
+~~ Why using the Wand library (why not the usual one) ?.dds image file extension ~~
 
 Using an external tool to convert to .dds because of compression format not available in any Python Library
 
@@ -54,7 +54,16 @@ Why so many comments ?
 About Youtube Shorts
 
 > Because one channel started to spam youtube shorts, I added a filter to skip all videos of a duration above x seconds. Yes Youtube API does not provide a proper way to identify shorts from videos
-> see : https://stackoverflow.com/questions/78597268/is-there-a-way-using-youtubes-v3-api-to-determine-if-a-video-by-id-is-a-shor 
+> see : https://stackoverflow.com/questions/78597268/is-there-a-way-using-youtubes-v3-api-to-determine-if-a-video-by-id-is-a-shor
+
+Timed-out ?
+
+> Google appscript personnal use has a time limit per script of 6 min
+> To solve this problem I have updated the script to save pointer in its progress so that the next execution knows where to resume
+
+But how many executions is required ?
+
+> I don't know, it is heavily reliant on how Youtube API is slow/fast, but it wouldn't hurt to add more Time-driven launch since now the script check if the task was already done
 
 ## Batch scripts
 

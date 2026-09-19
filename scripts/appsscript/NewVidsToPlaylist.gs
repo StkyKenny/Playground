@@ -1,3 +1,78 @@
+var spreadsheetID = "123123123123123123123123123123";
+var playlistID = "123123123123123123123123123123-123123123123123123123123123123";
+var errorAlertEmail = "user@gmail.com";
+
+var sheet = SpreadsheetApp.openById(spreadsheetID).getSheetByName("Main Sheet");
+var isChannelProcessed = "done";
+var isChannelNotProcessed = "not done";
+var programInProgress = "in progress";
+var programIsDone = "done";
+var lr = sheet.getLastRow();
+
+function repeatWork() {
+  // Check to not repeat if task is already done
+  console.log("Starting Script");
+  if (wasFinished()) {
+    console.log("Program is considered done for the day");
+    return;
+  }
+  fetchVideosToBuffer();
+}
+/**
+ * Check weither the last run did finished
+ */
+function wasFinished() {
+  var timeZone = Session.getScriptTimeZone();
+  var today = Utilities.formatDate(new Date(), timeZone, "dd-MM-yyyy");
+
+  var lastFinishedUpdate = Utilities.formatDate(sheet.getRange(1, 1).getValue(), timeZone, "dd-MM-yyyy");
+  // Check if it's a new date
+  console.log("TODAY :" + today);
+  console.log("LAST  :" + lastFinishedUpdate);
+
+  if (today != lastFinishedUpdate) {
+    console.log("Date differed");
+    sheet.getRange(1, 2).setValue(programInProgress); // Indicate that the program has started
+    // set all to not done yet
+    Logger.log("set last updated date " + new Date());
+    sheet.getRange(1, 1).setValue(new Date());
+    for (var i = 3; i <= lr; i++) {
+      var wasDoneEntirelyYesterday = true;
+      var currentChannelName = "None";
+      if (wasDoneEntirelyYesterday && sheet.getRange(i, 1).getValue() == isChannelNotProcessed) {
+        wasDoneEntirelyYesterday = false;
+        currentChannelName = sheet.getRange(i, 2).getValue();
+        continue;
+      }
+      if (!wasDoneEntirelyYesterday) {
+        alertErrorToEmail(
+          "YT SYNC wasn't fully complete the day before",
+          "It was last stopped at " + currentChannelName,
+        );
+      }
+      var processedCheck = sheet.getRange(i, 1).setValue(isChannelNotProcessed);
+    }
+  }
+  // Check if program in progess
+  if (sheet.getRange(1, 2).getValue() != programIsDone) {
+    console.log("Program wasn't done, resuming starting the last channel");
+    return false;
+  }
+
+  return true;
+}
+
+function alertErrorToEmail(title, message) {
+  const subject = "[Apps Script ALERT] - " + title;
+  const body = "---" + new Date().toISOString() + "---\n" + message;
+
+  MailApp.sendEmail({
+    to: errorAlertEmail,
+    subject: subject,
+    body: body,
+  });
+}
+
 function getLastRowCol(sheet, column) {
   let lastRow = 1;
   while (sheet.getRange(lastRow, column).getValue().trim().toLowerCase() != "") {
@@ -17,20 +92,21 @@ function youtubeDurationToSeconds(duration) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-function myFunction() {
-  var spreadsheetID = "123123123123123123123123123123";
-  var playlistID = "123123123123123123123123123123-123123123123123123123123123123";
-
+function fetchVideosToBuffer() {
   var maxVideosToCheck = 10;
-
-  var sheet = SpreadsheetApp.openById(spreadsheetID).getSheetByName("Main Sheet");
-  var lr = sheet.getLastRow();
 
   for (var i = 3; i <= lr; i++) {
     var channelId = sheet.getRange(i, 3).getValue();
     if (channelId.trim().toLowerCase() == "") {
       continue;
     }
+
+    // SKIP already processed
+    var processedCheck = sheet.getRange(2, 3).getValue();
+    if (processedCheck == isChannelProcessed) {
+      continue;
+    }
+
     var channelName = sheet.getRange(i, 2).getValue();
     var rejectShorts = "no" == sheet.getRange(i, 5).getValue().toString().toLowerCase().trim();
     var shortsThreshold = 3 * 60; // I consider shorts on this channel are videos not lasting longer than 3 mins.
@@ -56,7 +132,7 @@ function myFunction() {
     var videoDetails = YouTube.Videos.list("contentDetails", { id: resultIds }); // Can't fetch duration from the previous API, so I had to call this new endpoint
     // Example output of this api endpoint
     /*
-    	{ id: 'XXXXXX',
+      { id: 'XXXXXX',
         snippet: 
         { description: '',
         title: 'xxxxxxxxxxxxxxxxxxxxxxxx',
@@ -87,7 +163,6 @@ function myFunction() {
       etag: 'XXXXXXXXXXXXXX',
       kind: 'youtube#video' }
     */
-
     var watchedVideosSheet2 = SpreadsheetApp.openById(spreadsheetID).getSheetByName("WatchedVid2.0");
 
     // Search for the column of watched videos related to correct channel id instead of watched ids of all
@@ -125,7 +200,6 @@ function myFunction() {
       watchedVideosSheet2.getRange(count, currentColumn, watchedVideosSheet2LR, 1).clearContent();
     }
 
-
     // LOOP Each Video
 
     for (var j = 0; j < maxVideosToCheck; j++) {
@@ -142,7 +216,7 @@ function myFunction() {
               .getValue()
               .indexOf(results.items[j].snippet.resourceId.videoId) > -1
           ) {
-            Logger.log("vid already added");
+            //Logger.log("vid already added");
             alreadyAdded = true;
             break;
           }
@@ -157,7 +231,6 @@ function myFunction() {
           if (rejectShorts) {
             let durationCheck =
               shortsThreshold > youtubeDurationToSeconds(videoDetails.items[j].contentDetails.duration);
-            console.log(rejectShorts && durationCheck);
             if (durationCheck) {
               console.info("skipped duration SHORT-checked");
               continue;
@@ -191,19 +264,36 @@ function myFunction() {
               .setValue(results.items[j].snippet.resourceId.videoId);
             //.setValue(results.items[j].id.videoId);
             watchedVideosSheet2LR += 1;
-
-            console.log("ok");
           } catch (e) {
             Logger.log("failed inserting");
             Logger.log(e.toString());
+            alertErrorToEmail(
+              "YT SYNC Failed inserting",
+              "It was stopped on this item :" + results.items[j] + "\n With error message :" + e + "\n" + e.toString(),
+            );
           }
         }
       } catch (e) {
         console.error("myFunction() yielded an error: " + e);
         console.error("On this item :" + results.items[j]);
+        alertErrorToEmail(
+          "YT SYNC Error",
+          "It was stopped on this item :" + results.items[j] + "\n With error message :" + e + "\n" + e.toString(),
+        );
       }
     }
 
+    // Set check to done
+    sheet.getRange(i, 1).setValue(isChannelProcessed);
+    Logger.log("set " + channelName + " to " + isChannelProcessed);
+
     sheet.getRange(i, 4).setValue(results.items[0].id.videoId);
+
+    Logger.log("-----------");
+    Logger.log("-----------");
   }
+
+  // when all is processed update date and set to done
+  sheet.getRange(1, 2).setValue(programIsDone);
+  Logger.log("set Program is done");
 }
