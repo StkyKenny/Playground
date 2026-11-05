@@ -80,3 +80,4 @@ Start SSH agent, docker, minikube then Jenkins
 ### -start_backwork.bat
 
 Start MongoDB (no automtart to save RAM), and the backwork Application
+Also verify that the backwork Application is no already running (Current method has flaw of not seeing minimized windows, alternative could be to use vbs but I am not familiar with it)
